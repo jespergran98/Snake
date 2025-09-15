@@ -1,4 +1,55 @@
 .apple {
-    background-color: red;
+    background: radial-gradient(circle at 30% 30%, #ff4444, #cc0000, #ff1744);
     border-radius: 50%;
+    position: relative;
+    z-index: 5;
+    border: none !important;
+    width: 80%;
+    height: 80%;
+    margin: 10%;
+    box-shadow: 
+        0 0 25px rgba(255, 23, 68, 0.8),
+        inset 0 0 15px rgba(255, 255, 255, 0.3);
+    animation: appleFloat 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes appleFloat {
+    0% {
+        transform: translateY(0) scale(1);
+        box-shadow: 
+            0 0 20px rgba(255, 23, 68, 0.6),
+            inset 0 0 12px rgba(255, 255, 255, 0.2);
+    }
+    100% {
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 
+            0 0 30px rgba(255, 23, 68, 1),
+            inset 0 0 18px rgba(255, 255, 255, 0.4);
+    }
+}
+
+.apple::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 45%;
+    width: 10%;
+    height: 15px;
+    background: linear-gradient(45deg, #228b22, #32cd32);
+    border-radius: 0 50% 50% 0;
+    transform: rotate(-15deg);
+    box-shadow: 0 0 5px rgba(50, 205, 50, 0.5);
+}
+
+.apple::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    right: 40%;
+    width: 8px;
+    height: 12px;
+    background: linear-gradient(45deg, #228b22, #32cd32);
+    border-radius: 50% 0 50% 50%;
+    transform: rotate(25deg);
+    box-shadow: 0 0 3px rgba(50, 205, 50, 0.3);
 }

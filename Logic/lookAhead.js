@@ -1,13 +1,12 @@
-// lookAhead.js - Advanced pathfinding with collision avoidance
+// lookAhead.js - Optimized pathfinding with collision avoidance
 
 class GameState {
     constructor(snake, gridSize, obstacles = new Set()) {
-        this.snake = [...snake]; // Copy snake array
+        this.snake = [...snake];
         this.gridSize = gridSize;
-        this.obstacles = new Set(obstacles); // Copy obstacles
+        this.obstacles = new Set(obstacles);
     }
 
-    // Simulate moving the snake in a given direction
     moveSnake(direction, ateFood = false) {
         const head = this.snake[0];
         const newHead = {
@@ -15,22 +14,14 @@ class GameState {
             y: head.y + direction.y
         };
 
-        // Check if move is valid (within bounds and not hitting snake body)
-        if (!this.isValidPosition(newHead)) {
-            return null; // Invalid move
-        }
+        if (!this.isValidPosition(newHead)) return null;
 
-        // Create new snake with new head
         const newSnake = [newHead, ...this.snake];
-        
-        // If didn't eat food, remove tail
-        if (!ateFood) {
-            newSnake.pop();
-        }
+        if (!ateFood) newSnake.pop();
 
-        // Update obstacles set
+        // Update obstacles - only include snake body (excluding head)
         const newObstacles = new Set();
-        for (let i = 1; i < newSnake.length; i++) { // Skip head
+        for (let i = 1; i < newSnake.length; i++) {
             newObstacles.add(`${newSnake[i].x},${newSnake[i].y}`);
         }
 
@@ -38,50 +29,37 @@ class GameState {
     }
 
     isValidPosition(pos) {
-        // Check bounds
-        if (pos.x < 0 || pos.x >= this.gridSize || pos.y < 0 || pos.y >= this.gridSize) {
-            return false;
-        }
-        
-        // Check if position is occupied by snake body
-        const posKey = `${pos.x},${pos.y}`;
-        return !this.obstacles.has(posKey);
+        return pos.x >= 0 && pos.x < this.gridSize && 
+               pos.y >= 0 && pos.y < this.gridSize && 
+               !this.obstacles.has(`${pos.x},${pos.y}`);
     }
 
     getValidMoves() {
         const directions = [
-            { x: 0, y: -1, name: 'up' },
-            { x: 0, y: 1, name: 'down' },
-            { x: -1, y: 0, name: 'left' },
-            { x: 1, y: 0, name: 'right' }
+            { x: 0, y: -1 }, { x: 0, y: 1 },
+            { x: -1, y: 0 }, { x: 1, y: 0 }
         ];
 
-        const validMoves = [];
-        const head = this.snake[0];
-
-        for (const dir of directions) {
+        return directions.filter(dir => {
             const newPos = {
-                x: head.x + dir.x,
-                y: head.y + dir.y
+                x: this.snake[0].x + dir.x,
+                y: this.snake[0].y + dir.y
             };
-
-            if (this.isValidPosition(newPos)) {
-                validMoves.push(dir);
-            }
-        }
-
-        return validMoves;
+            return this.isValidPosition(newPos);
+        });
     }
 
-    // Calculate available space from current head position using flood fill
+    // Optimized flood fill with early termination
     getAvailableSpace() {
         const visited = new Set();
         const queue = [this.snake[0]];
-        visited.add(`${this.snake[0].x},${this.snake[0].y}`);
+        const startKey = `${this.snake[0].x},${this.snake[0].y}`;
+        visited.add(startKey);
 
         while (queue.length > 0) {
             const current = queue.shift();
-
+            
+            // Check 4 directions
             const neighbors = [
                 { x: current.x + 1, y: current.y },
                 { x: current.x - 1, y: current.y },
@@ -91,7 +69,6 @@ class GameState {
 
             for (const neighbor of neighbors) {
                 const key = `${neighbor.x},${neighbor.y}`;
-                
                 if (!visited.has(key) && this.isValidPosition(neighbor)) {
                     visited.add(key);
                     queue.push(neighbor);
@@ -103,77 +80,64 @@ class GameState {
     }
 }
 
-function manhattanDistance(a, b) {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
+const manhattanDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-// Look ahead multiple moves to evaluate safety
-function evaluateMove(gameState, direction, foodPos, depth = 3) {
+// Streamlined move evaluation with configurable recursion depth
+function evaluateMove(gameState, direction, foodPos, depth = 4) {
     if (depth <= 0) {
+        const head = gameState.snake[0];
         return {
-            score: 0,
+            score: manhattanDistance(head, foodPos) * -2, // Negative because closer is better
             availableSpace: gameState.getAvailableSpace(),
-            distanceToFood: manhattanDistance(gameState.snake[0], foodPos)
+            distanceToFood: manhattanDistance(head, foodPos)
         };
     }
 
-    // Simulate the move
     const newState = gameState.moveSnake(direction);
     if (!newState) {
-        return {
-            score: -1000, // Invalid move penalty
-            availableSpace: 0,
-            distanceToFood: Infinity
-        };
+        return { score: -1000, availableSpace: 0, distanceToFood: Infinity };
     }
 
     const newHead = newState.snake[0];
     let score = 0;
 
-    // Reward getting closer to food
+    // Distance to food (closer = higher score)
     const distanceToFood = manhattanDistance(newHead, foodPos);
-    score += (gameState.gridSize * 2 - distanceToFood) * 2;
+    score += (gameState.gridSize * 2 - distanceToFood) * 3;
 
-    // Heavily reward available space (prevents getting trapped)
+    // Available space (critical for survival)
     const availableSpace = newState.getAvailableSpace();
-    score += availableSpace * 10;
+    score += availableSpace * 8;
 
-    // Penalty for being too close to walls or corners
+    // Wall proximity penalty
     const wallDistance = Math.min(
-        newHead.x, 
-        newHead.y, 
+        newHead.x, newHead.y, 
         gameState.gridSize - 1 - newHead.x, 
         gameState.gridSize - 1 - newHead.y
     );
-    if (wallDistance === 0) score -= 50; // Against wall
-    if (wallDistance === 1) score -= 20; // One step from wall
+    score -= wallDistance === 0 ? 40 : wallDistance === 1 ? 15 : 0;
 
-    // Look ahead recursively for longer-term planning
+    // Future move evaluation
     const futureValidMoves = newState.getValidMoves();
     if (futureValidMoves.length === 0) {
-        score -= 500; // Dead end
+        score -= 400; // Dead end penalty
     } else {
-        // Evaluate best future move
+        // Quick evaluation of best future option
         let bestFutureScore = -Infinity;
         for (const futureDir of futureValidMoves) {
             const futureEval = evaluateMove(newState, futureDir, foodPos, depth - 1);
             bestFutureScore = Math.max(bestFutureScore, futureEval.score);
         }
-        score += bestFutureScore * 0.7; // Discount future rewards
+        score += bestFutureScore * 0.6; // Reduced future discount
     }
 
-    return {
-        score: score,
-        availableSpace: availableSpace,
-        distanceToFood: distanceToFood
-    };
+    return { score, availableSpace, distanceToFood };
 }
 
-// Enhanced A* with look-ahead safety checks
-function safeFindPath(start, goal, gridSize, obstacles) {
+// Optimized A* pathfinding
+function findPath(start, goal, gridSize, obstacles) {
     const openSet = [{
-        x: start.x,
-        y: start.y,
+        ...start,
         g: 0,
         h: manhattanDistance(start, goal),
         f: manhattanDistance(start, goal),
@@ -182,23 +146,19 @@ function safeFindPath(start, goal, gridSize, obstacles) {
     
     const closedSet = new Set();
     const openSetMap = new Map();
-    openSetMap.set(`${start.x},${start.y}`, openSet[0]);
+    const startKey = `${start.x},${start.y}`;
+    openSetMap.set(startKey, openSet[0]);
 
     while (openSet.length > 0) {
-        // Find node with lowest f score
-        let currentIndex = 0;
-        for (let i = 1; i < openSet.length; i++) {
-            if (openSet[i].f < openSet[currentIndex].f) {
-                currentIndex = i;
-            }
-        }
-
+        // Find lowest f-score node
+        const currentIndex = openSet.reduce((minIdx, node, idx) => 
+            node.f < openSet[minIdx].f ? idx : minIdx, 0);
+        
         const current = openSet.splice(currentIndex, 1)[0];
         const currentKey = `${current.x},${current.y}`;
         openSetMap.delete(currentKey);
         closedSet.add(currentKey);
 
-        // Check if we reached the goal
         if (current.x === goal.x && current.y === goal.y) {
             // Reconstruct path
             const path = [];
@@ -210,7 +170,7 @@ function safeFindPath(start, goal, gridSize, obstacles) {
             return path;
         }
 
-        // Check neighbors
+        // Process neighbors
         const directions = [
             { x: 0, y: -1 }, { x: 0, y: 1 },
             { x: -1, y: 0 }, { x: 1, y: 0 }
@@ -221,18 +181,10 @@ function safeFindPath(start, goal, gridSize, obstacles) {
             const neighborY = current.y + dir.y;
             const neighborKey = `${neighborX},${neighborY}`;
 
-            // Check bounds
             if (neighborX < 0 || neighborX >= gridSize || 
-                neighborY < 0 || neighborY >= gridSize) {
-                continue;
-            }
-
-            // Check obstacles
-            if (obstacles.has(neighborKey)) {
-                continue;
-            }
-
-            if (closedSet.has(neighborKey)) {
+                neighborY < 0 || neighborY >= gridSize ||
+                obstacles.has(neighborKey) || 
+                closedSet.has(neighborKey)) {
                 continue;
             }
 
@@ -259,9 +211,10 @@ function safeFindPath(start, goal, gridSize, obstacles) {
         }
     }
 
-    return []; // No path found
+    return [];
 }
 
+// Utility function
 function getCellCoordinates(cell, gridCells) {
     const index = Array.from(gridCells).indexOf(cell);
     const gridSize = Math.sqrt(gridCells.length);
@@ -271,59 +224,50 @@ function getCellCoordinates(cell, gridCells) {
     };
 }
 
-// Enhanced direction selection with look-ahead
+// Main AI function - streamlined decision making
 window.getNextDirectionWithLookAhead = function(snake, foodCell, gridSize, gridCells, currentDirection) {
-    if (!snake || !foodCell || snake.length === 0) {
-        return null;
-    }
+    if (!snake || !foodCell || snake.length === 0) return null;
 
-    // Convert snake cells to coordinates
+    // Convert snake to coordinates
     const snakeCoords = snake.map(cell => 
         cell ? getCellCoordinates(cell, gridCells) : null
     ).filter(coord => coord !== null);
 
     if (snakeCoords.length === 0) return null;
 
-    // Create obstacles set (snake body excluding head)
+    // Create obstacles (snake body excluding head)
     const obstacles = new Set();
     for (let i = 1; i < snakeCoords.length; i++) {
         obstacles.add(`${snakeCoords[i].x},${snakeCoords[i].y}`);
     }
 
-    // Create game state
     const gameState = new GameState(snakeCoords, gridSize, obstacles);
     const foodCoords = getCellCoordinates(foodCell, gridCells);
-
-    // Get all valid moves
     const validMoves = gameState.getValidMoves();
     
-    if (validMoves.length === 0) {
-        return currentDirection; // No valid moves, continue current direction
-    }
+    if (validMoves.length === 0) return currentDirection;
 
-    // First, try to find a path to food
-    const pathToFood = safeFindPath(snakeCoords[0], foodCoords, gridSize, obstacles);
+    // Try pathfinding first for efficiency
+    const pathToFood = findPath(snakeCoords[0], foodCoords, gridSize, obstacles);
     
     let bestMove = null;
     let bestScore = -Infinity;
-    let moveEvaluations = [];
+    const moveEvaluations = [];
 
-    // Evaluate each possible move
+    // Evaluate each move
     for (const move of validMoves) {
-        const evaluation = evaluateMove(gameState, move, foodCoords, 4); // Look 4 moves ahead
-        moveEvaluations.push({
-            direction: move,
-            ...evaluation
-        });
-
-        // Bonus if this move is on the path to food
+        const evaluation = evaluateMove(gameState, move, foodCoords, 4);
+        
+        // Bonus for following optimal path
         if (pathToFood.length > 0) {
             const nextStep = pathToFood[0];
             if (move.x === (nextStep.x - snakeCoords[0].x) && 
                 move.y === (nextStep.y - snakeCoords[0].y)) {
-                evaluation.score += 100; // Bonus for following optimal path
+                evaluation.score += 80;
             }
         }
+
+        moveEvaluations.push({ direction: move, ...evaluation });
 
         if (evaluation.score > bestScore) {
             bestScore = evaluation.score;
@@ -331,18 +275,17 @@ window.getNextDirectionWithLookAhead = function(snake, foodCell, gridSize, gridC
         }
     }
 
-    // Safety check: if the best move has very low available space, 
-    // prefer the move with the most available space
-    const bestEvaluation = moveEvaluations.find(evaluation => 
-        evaluation.direction.x === bestMove.x && evaluation.direction.y === bestMove.y
+    // Safety override: prioritize space if critically low
+    const bestEval = moveEvaluations.find(e => 
+        e.direction.x === bestMove.x && e.direction.y === bestMove.y
     );
 
-    if (bestEvaluation && bestEvaluation.availableSpace < snakeCoords.length + 5) {
+    if (bestEval?.availableSpace < snakeCoords.length + 3) {
         const safestMove = moveEvaluations.reduce((best, current) => 
             current.availableSpace > best.availableSpace ? current : best
         );
 
-        if (safestMove.availableSpace > bestEvaluation.availableSpace + 10) {
+        if (safestMove.availableSpace > bestEval.availableSpace + 8) {
             bestMove = safestMove.direction;
         }
     }
@@ -350,13 +293,10 @@ window.getNextDirectionWithLookAhead = function(snake, foodCell, gridSize, gridC
     return bestMove;
 };
 
-// Replace the original getNextDirection function
+// Main interface function
 window.getNextDirection = function(snake, foodCell, gridSize, gridCells) {
-    const currentDirection = window.getDirection ? window.getDirection() : { x: 1, y: 0 };
-    
-    const nextDir = window.getNextDirectionWithLookAhead(
+    const currentDirection = window.getDirection?.() || { x: 1, y: 0 };
+    return window.getNextDirectionWithLookAhead(
         snake, foodCell, gridSize, gridCells, currentDirection
-    );
-    
-    return nextDir || currentDirection;
+    ) || currentDirection;
 };

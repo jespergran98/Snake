@@ -5,26 +5,31 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    background-color: #3a3a3a;
+    background-color: #161616;
 }
 
 .grid-container {
     display: grid;
     grid-template-columns: repeat(17, 1fr);
     grid-template-rows: repeat(17, 1fr);
-    height: 90vh; /* Base case: 90% of viewport height */
+    height: 90vh;
     width: auto;
     aspect-ratio: 1 / 1;
-    border: 2px solid #1f1f1f;
+    border: 5px solid #0e0e0e;
+    background-color: #1d1d1d;
+    position: relative;
 }
 
 @media (max-aspect-ratio: 1/1) {
     .grid-container {
         height: auto;
-        width: 90vw; /* When the viewport is taller than it is wide, set width to 90% of viewport width */
+        width: 90vw;
     }
 }
 
 .grid-cell {
-    border: 1px solid #1f1f1f;
+    border: 1px solid #222222;
+    background-color: #1d1d1d;
+    position: relative;
+    z-index: 1;
 }

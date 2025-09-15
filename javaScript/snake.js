@@ -11,18 +11,17 @@ document.addEventListener('DOMContentLoaded', () => {
         getCell(0, 8)
     ];
     let direction = { x: 1, y: 0 };
-    let snakeSpeed = 10;
+    let manualSpeed = 100;  // Speed for manual mode
+    let automaticSpeed = 10; // Speed for automatic mode
     let foodCell;
     let score = 0;
     let gameRunning = false;
-    let gameMode = 'manual'; // 'manual' or 'automatic'
+    let gameMode = 'manual';
     let gameLoopTimeout;
 
+    // Utility functions
     function getCell(x, y) {
-        // Return null if coordinates are out of bounds
-        if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) {
-            return null;
-        }
+        if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return null;
         return gridCells[y * gridSize + x];
     }
 
@@ -34,83 +33,98 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    function getSegmentDirection(currentCell, nextCell) {
-        if (!currentCell || !nextCell) return 'horizontal'; // default
+    function getDirectionBetween(fromCell, toCell) {
+        if (!fromCell || !toCell) return null;
         
-        const currentCoords = getCellCoordinates(currentCell);
-        const nextCoords = getCellCoordinates(nextCell);
+        const fromCoords = getCellCoordinates(fromCell);
+        const toCoords = getCellCoordinates(toCell);
         
-        // If moving horizontally (x changes), make it horizontally oriented
-        if (currentCoords.x !== nextCoords.x) {
-            return 'horizontal';
-        }
-        // If moving vertically (y changes), make it vertically oriented
-        else {
-            return 'vertical';
-        }
+        return {
+            x: toCoords.x - fromCoords.x,
+            y: toCoords.y - fromCoords.y
+        };
+    }
+
+    function isCorner(prevCell, currentCell, nextCell) {
+        if (!prevCell || !currentCell || !nextCell) return false;
+        
+        const dir1 = getDirectionBetween(prevCell, currentCell);
+        const dir2 = getDirectionBetween(currentCell, nextCell);
+        
+        return dir1.x !== dir2.x || dir1.y !== dir2.y;
+    }
+
+    function getCornerClass(prevCell, currentCell, nextCell) {
+        const incomingDir = getDirectionBetween(prevCell, currentCell);
+        const outgoingDir = getDirectionBetween(currentCell, nextCell);
+
+        const turnKey = `${incomingDir.x},${incomingDir.y}->${outgoingDir.x},${outgoingDir.y}`;
+
+        const cornerMap = {
+            '1,0->0,1': 'snake-corner-right-down',
+            '0,-1->-1,0': 'snake-corner-right-down',
+            '0,1->1,0': 'snake-corner-left-up',
+            '-1,0->0,-1': 'snake-corner-left-up',
+            '0,-1->1,0': 'snake-corner-up-right',
+            '-1,0->0,1': 'snake-corner-up-right',
+            '1,0->0,-1': 'snake-corner-down-right',
+            '0,1->-1,0': 'snake-corner-down-right'
+        };
+
+        return cornerMap[turnKey] || '';
+    }
+
+    // Snake rendering functions
+    function clearSnakeClasses(cell) {
+        if (!cell) return;
+        
+        const snakeClasses = [
+            'snake', 'snake-horizontal', 'snake-vertical', 'snake-corner',
+            'snake-corner-left-up', 'snake-corner-right-down', 
+            'snake-corner-up-right', 'snake-corner-down-right'
+        ];
+        cell.classList.remove(...snakeClasses);
     }
 
     function updateSnakeSegmentClasses() {
         snake.forEach((cell, index) => {
             if (!cell) return;
             
-            // Remove existing directional classes
-            cell.classList.remove('snake-horizontal', 'snake-vertical');
+            clearSnakeClasses(cell);
+            cell.classList.add('snake');
             
-            let segmentDirection;
+            let segmentClasses = [];
             
             if (index === 0) {
-                // Head: use current movement direction
-                if (direction.x !== 0) {
-                    segmentDirection = 'horizontal';
-                } else {
-                    segmentDirection = 'vertical';
-                }
+                // Head segment
+                segmentClasses.push(direction.x !== 0 ? 'snake-horizontal' : 'snake-vertical');
+            } else if (index === snake.length - 1) {
+                // Tail segment
+                const prevCell = snake[index - 1];
+                const tailDir = getDirectionBetween(prevCell, cell);
+                segmentClasses.push(tailDir && tailDir.x !== 0 ? 'snake-horizontal' : 'snake-vertical');
             } else {
-                // Body segments: determine direction based on adjacent segments
+                // Body segments
                 const prevCell = snake[index - 1];
                 const nextCell = snake[index + 1];
                 
-                if (prevCell && nextCell) {
-                    // Middle segment: check if it's part of a turn
-                    const prevCoords = getCellCoordinates(prevCell);
-                    const currentCoords = getCellCoordinates(cell);
-                    const nextCoords = getCellCoordinates(nextCell);
-                    
-                    const prevDirection = {
-                        x: currentCoords.x - prevCoords.x,
-                        y: currentCoords.y - prevCoords.y
-                    };
-                    const nextDirection = {
-                        x: nextCoords.x - currentCoords.x,
-                        y: nextCoords.y - currentCoords.y
-                    };
-                    
-                    // If directions are the same, use that direction
-                    if (prevDirection.x === nextDirection.x && prevDirection.y === nextDirection.y) {
-                        segmentDirection = prevDirection.x !== 0 ? 'horizontal' : 'vertical';
-                    } else {
-                        // At a turn, use the incoming direction
-                        segmentDirection = prevDirection.x !== 0 ? 'horizontal' : 'vertical';
-                    }
-                } else if (prevCell) {
-                    // Tail or near tail: use direction from previous segment
-                    segmentDirection = getSegmentDirection(prevCell, cell);
+                if (isCorner(prevCell, cell, nextCell)) {
+                    segmentClasses.push('snake-corner');
+                    const cornerClass = getCornerClass(prevCell, cell, nextCell);
+                    if (cornerClass) segmentClasses.push(cornerClass);
                 } else {
-                    // Fallback
-                    segmentDirection = 'horizontal';
+                    const dir = getDirectionBetween(prevCell, cell);
+                    segmentClasses.push(dir && dir.x !== 0 ? 'snake-horizontal' : 'snake-vertical');
                 }
             }
             
-            cell.classList.add('snake-' + segmentDirection);
+            cell.classList.add(...segmentClasses);
         });
     }
 
     function createSnake() {
         snake.forEach(cell => {
-            if (cell) {
-                cell.classList.add('snake');
-            }
+            if (cell) cell.classList.add('snake');
         });
         updateSnakeSegmentClasses();
     }
@@ -133,86 +147,73 @@ document.addEventListener('DOMContentLoaded', () => {
         scoreDisplay.textContent = score;
     }
 
+    // Game control functions
     function gameOver() {
         gameRunning = false;
-        if (gameLoopTimeout) {
-            clearTimeout(gameLoopTimeout);
-        }
+        if (gameLoopTimeout) clearTimeout(gameLoopTimeout);
         alert('Game Over! Score: ' + score);
         resetGame();
     }
 
     function resetGame() {
-        // Clear all snake and apple classes
         gridCells.forEach(cell => {
-            cell.classList.remove('snake', 'apple', 'snake-horizontal', 'snake-vertical');
+            clearSnakeClasses(cell);
+            cell.classList.remove('apple');
         });
 
-        // Reset snake to initial position
-        snake = [
-            getCell(2, 8),
-            getCell(1, 8),
-            getCell(0, 8)
-        ];
+        snake = [getCell(2, 8), getCell(1, 8), getCell(0, 8)];
         direction = { x: 1, y: 0 };
         score = 0;
         updateScore();
-
-        // Recreate initial game state
         createSnake();
         createFood();
+    }
+
+    function getCurrentSpeed() {
+        return gameMode === 'manual' ? manualSpeed : automaticSpeed;
     }
 
     function gameLoop() {
         if (!gameRunning) return;
 
-        // Get the current head position
         const head = snake[0];
         const headCoords = getCellCoordinates(head);
 
-        // In automatic mode, get direction from A* algorithm
+        // Get direction from AI in automatic mode
         if (gameMode === 'automatic' && window.getNextDirection) {
             const nextDir = window.getNextDirection(snake, foodCell, gridSize, gridCells);
-            if (nextDir) {
-                direction = nextDir;
-            }
+            if (nextDir) direction = nextDir;
         }
 
-        // Calculate the new head position
+        // Calculate new head position
         const newHeadX = headCoords.x + direction.x;
         const newHeadY = headCoords.y + direction.y;
-
-        // Get the new head cell
         const newHead = getCell(newHeadX, newHeadY);
 
-        // Check for collision with self or walls
+        // Check collisions
         if (!newHead || newHead.classList.contains('snake')) {
             gameOver();
             return;
         }
 
-        // Add the new head to the snake
+        // Move snake
         snake.unshift(newHead);
         newHead.classList.add('snake');
 
-        // Check if the new head is on an apple
+        // Check for food consumption
         if (newHead === foodCell) {
             newHead.classList.remove('apple');
             score++;
             updateScore();
             createFood();
         } else {
-            // Remove the tail if no food was eaten
+            // Remove tail
             const tail = snake.pop();
-            if (tail) {
-                tail.classList.remove('snake', 'snake-horizontal', 'snake-vertical');
-            }
+            clearSnakeClasses(tail);
         }
 
-        // Update all snake segment classes based on current directions
         updateSnakeSegmentClasses();
-
-        gameLoopTimeout = setTimeout(gameLoop, snakeSpeed);
+        gameLoopTimeout = setTimeout(gameLoop, getCurrentSpeed());
     }
 
     function startGame() {
@@ -224,12 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function stopGame() {
         gameRunning = false;
-        if (gameLoopTimeout) {
-            clearTimeout(gameLoopTimeout);
-        }
+        if (gameLoopTimeout) clearTimeout(gameLoopTimeout);
     }
 
-    // Button event listeners
+    // Event listeners
     manualBtn.addEventListener('click', () => {
         if (gameMode !== 'manual') {
             stopGame();
@@ -250,17 +249,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Set up the initial game state
+    // Initialize game
     createSnake();
     createFood();
     updateScore();
     startGame();
 
-    // Expose functions and variables for other modules
+    // Export functions for other modules
     window.setDirection = (newDirection) => {
-        if (gameMode === 'manual') {
-            direction = newDirection;
-        }
+        if (gameMode === 'manual') direction = newDirection;
     };
     
     window.getDirection = () => direction;
