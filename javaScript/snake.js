@@ -3,9 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const gridSize = 17;
 
     let snake = [
-        getCell(8, 8),
-        getCell(7, 8),
-        getCell(6, 8)
+        getCell(2, 8),
+        getCell(1, 8),
+        getCell(0, 8)
     ];
     let direction = { x: 1, y: 0 };
     let snakeSpeed = 100;
@@ -13,10 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let score = 0;
 
     function getCell(x, y) {
-        // Ensure coordinates wrap around the grid
-        const wrappedX = (x + gridSize) % gridSize;
-        const wrappedY = (y + gridSize) % gridSize;
-        return gridCells[wrappedY * gridSize + wrappedX];
+        // Return null if coordinates are out of bounds
+        if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) {
+            return null;
+        }
+        return gridCells[y * gridSize + x];
     }
 
     function createSnake() {
@@ -31,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const randomIndex = Math.floor(Math.random() * gridSize * gridSize);
             newFoodCell = gridCells[randomIndex];
         } while (newFoodCell.classList.contains('snake'));
-        
+
         foodCell = newFoodCell;
         foodCell.classList.add('apple');
     }
@@ -42,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const headIndex = Array.from(gridCells).indexOf(head);
         const headX = headIndex % gridSize;
         const headY = Math.floor(headIndex / gridSize);
-        
+
         // Calculate the new head position
         const newHeadX = headX + direction.x;
         const newHeadY = headY + direction.y;
@@ -50,8 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Get the new head cell
         const newHead = getCell(newHeadX, newHeadY);
 
-        // Check for collision with self
-        if (newHead.classList.contains('snake')) {
+        // Check for collision with self or walls
+        if (!newHead || newHead.classList.contains('snake')) {
             alert('Game Over! Score: ' + score);
             location.reload();
             return;

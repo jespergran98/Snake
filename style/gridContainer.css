@@ -4,7 +4,7 @@ body {
     align-items: center;
     min-height: 100vh;
     margin: 0;
-    background-color: #f0f0f0;
+    background-color: #3a3a3a;
 }
 
 .grid-container {
@@ -14,8 +14,7 @@ body {
     height: 90vh; /* Base case: 90% of viewport height */
     width: auto;
     aspect-ratio: 1 / 1;
-    border: 2px solid #333;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    border: 2px solid #1f1f1f;
 }
 
 @media (max-aspect-ratio: 1/1) {
@@ -26,5 +25,5 @@ body {
 }
 
 .grid-cell {
-    border: 1px solid #ccc;
+    border: 1px solid #1f1f1f;
 }
