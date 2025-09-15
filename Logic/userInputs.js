@@ -1,6 +1,12 @@
 // Logic/userInputs.js
 document.addEventListener('keydown', (e) => {
+    // Only process input if in manual mode
+    if (window.getGameMode && window.getGameMode() !== 'manual') {
+        return;
+    }
+
     const currentDirection = window.getDirection();
+    if (!currentDirection) return;
 
     switch (e.key) {
         case 'ArrowUp':

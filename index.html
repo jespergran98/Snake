@@ -8,9 +8,16 @@
 </head>
 <body>
     <div class="grid-container"></div>
+    <div class="controls">
+        <button id="manual-btn" class="control-btn active">Manual</button>
+        <button id="automatic-btn" class="control-btn">Automatic</button>
+        <div class="score">Score: <span id="score-display">0</span></div>
+    </div>
     <script src="javaScript/gameSettings.js" type="module"></script>
     <script src="javaScript/gridContainer.js" type="module"></script>
     <script src="javaScript/snake.js" type="module"></script>
     <script src="Logic/userInputs.js" type="module"></script>
+    <script src="Logic/a_star_algorithm.js" type="module"></script>
+    <script src="Logic/lookAhead.js" type="module"></script>
 </body>
 </html>
