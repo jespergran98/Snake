@@ -1,0 +1,30 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(17, 1fr);
+    grid-template-rows: repeat(17, 1fr);
+    height: 90vh; /* Base case: 90% of viewport height */
+    width: auto;
+    aspect-ratio: 1 / 1;
+    border: 2px solid #333;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-aspect-ratio: 1/1) {
+    .grid-container {
+        height: auto;
+        width: 90vw; /* When the viewport is taller than it is wide, set width to 90% of viewport width */
+    }
+}
+
+.grid-cell {
+    border: 1px solid #ccc;
+}
